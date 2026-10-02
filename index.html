@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2F3B87">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>SpreadSheet Comparator</title>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<style>
+  :root{
+    --bg:#F5F6F8;
+    --panel:#FFFFFF;
+    --border:#DEE2E8;
+    --text:#1B222C;
+    --text2:#5B6472;
+    --brand:#2F3B87;
+    --brand-dark:#232C68;
+    --add-bg:#E6F6ED; --add-fg:#177A45; --add-border:#B7E3C7;
+    --del-bg:#FBEAE8; --del-fg:#B23B30; --del-border:#F0C4BF;
+    --mod-bg:#FDF3DE; --mod-fg:#946212; --mod-border:#F0DBA6;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    background:var(--brand); color:#fff; padding:22px 32px;
+    display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  }
+  header h1{font-size:19px; margin:0; font-weight:650; letter-spacing:.2px;}
+  header p{margin:0; font-size:13px; color:#C7CCEB;}
+  main{max-width:1180px; margin:0 auto; padding:28px 24px 80px;}
+
+  .panel{background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:22px; margin-bottom:20px;}
+  .panel h2{font-size:14px; margin:0 0 14px; color:var(--text2); text-transform:uppercase; letter-spacing:.06em; font-weight:650;}
+
+  .dropzone{
+    border:1.5px dashed var(--border); border-radius:10px; padding:22px;
+    text-align:center; cursor:pointer; transition:border-color .15s, background .15s;
+    background:#FBFCFD;
+  }
+  .dropzone.drag{border-color:var(--brand); background:#EEF0FA;}
+  .dropzone .hint{font-size:12.5px; color:var(--text2); margin-top:4px;}
+  .dropzone input{display:none;}
+
+  .filelist{margin-top:16px; display:flex; flex-direction:column; gap:8px;}
+  .filerow{
+    display:flex; align-items:center; gap:10px; border:1px solid var(--border); border-radius:8px;
+    padding:9px 12px; background:#FBFCFD; font-size:13px;
+  }
+  .filerow .ord{
+    font-family:var(--mono); font-size:11px; color:#fff; background:var(--brand);
+    border-radius:5px; padding:2px 7px; flex-shrink:0;
+  }
+  .filerow .fn{flex:1; word-break:break-all;}
+  .filerow button{
+    border:1px solid var(--border); background:#fff; border-radius:6px; cursor:pointer;
+    font-size:12px; padding:3px 8px; color:var(--text2);
+  }
+  .filerow button:hover{background:#F0F1F4;}
+
+  .controls-row{display:flex; align-items:center; gap:18px; margin-top:16px; flex-wrap:wrap;}
+  .controls-row label{font-size:12.5px; color:var(--text2); display:flex; align-items:center; gap:8px;}
+  input[type=range]{width:140px;}
+  #sensVal{font-family:var(--mono); font-size:12.5px; color:var(--text);}
+  select{font-size:13px; padding:6px 10px; border-radius:7px; border:1px solid var(--border); font-family:var(--sans); background:#fff;}
+
+  button.primary{
+    background:var(--brand); color:#fff; border:none; border-radius:7px;
+    padding:10px 20px; font-size:13.5px; font-weight:600; cursor:pointer;
+    transition:background .15s;
+  }
+  button.primary:hover{background:var(--brand-dark);}
+  button.primary:disabled{background:#AEB4CE; cursor:not-allowed;}
+  button.secondary{
+    background:#fff; color:var(--brand); border:1.5px solid var(--brand); border-radius:7px;
+    padding:9px 16px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  button.secondary:hover{background:#EEF0FA;}
+
+  .summary{display:flex; gap:12px; flex-wrap:wrap;}
+  .stat{
+    flex:1; min-width:120px; border-radius:9px; padding:14px 16px; border:1px solid var(--border);
+    background:#FBFCFD;
+  }
+  .stat .n{font-family:var(--mono); font-size:22px; font-weight:650;}
+  .stat .l{font-size:11.5px; color:var(--text2); text-transform:uppercase; letter-spacing:.05em; margin-top:2px;}
+  .stat.add{border-color:var(--add-border); background:var(--add-bg);} .stat.add .n{color:var(--add-fg);}
+  .stat.del{border-color:var(--del-border); background:var(--del-bg);} .stat.del .n{color:var(--del-fg);}
+  .stat.mod{border-color:var(--mod-border); background:var(--mod-bg);} .stat.mod .n{color:var(--mod-fg);}
+  .stat.unc{color:var(--text2);}
+
+  .colchange{display:flex; align-items:center; gap:8px; font-size:13px; padding:6px 0; font-family:var(--mono);}
+  .badge{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 7px; border-radius:5px;}
+  .badge.add{background:var(--add-bg); color:var(--add-fg); border:1px solid var(--add-border);}
+  .badge.del{background:var(--del-bg); color:var(--del-fg); border:1px solid var(--del-border);}
+  .badge.mod{background:var(--mod-bg); color:var(--mod-fg); border:1px solid var(--mod-border);}
+
+  .filters{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center;}
+  .chip{
+    font-size:12.5px; padding:6px 13px; border-radius:999px; border:1px solid var(--border);
+    background:#fff; cursor:pointer; color:var(--text2); font-weight:600;
+  }
+  .chip.active{background:var(--text); color:#fff; border-color:var(--text);}
+  .search{
+    margin-left:auto; font-size:13px; padding:7px 12px; border-radius:8px; border:1px solid var(--border);
+    width:220px; font-family:var(--sans);
+  }
+
+  .tabbar{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:18px;}
+  .tab{
+    font-size:12.5px; padding:8px 14px; border-radius:8px; border:1px solid var(--border);
+    background:#fff; cursor:pointer; color:var(--text2); font-weight:600;
+  }
+  .tab.active{background:var(--brand); color:#fff; border-color:var(--brand);}
+
+  .rowcard{border:1px solid var(--border); border-radius:9px; margin-bottom:10px; overflow:hidden;}
+  .rowcard-head{
+    display:flex; align-items:center; gap:10px; padding:9px 14px; font-size:12.5px;
+    background:#FBFCFD; border-bottom:1px solid var(--border); color:var(--text2);
+  }
+  .rowcard-head .idx{font-family:var(--mono);}
+  .rowcard table{width:100%; border-collapse:collapse; font-size:13px;}
+  .rowcard th{
+    text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em;
+    color:var(--text2); padding:7px 12px; border-bottom:1px solid var(--border); font-weight:650;
+    background:#fff;
+  }
+  .rowcard td{padding:7px 12px; border-bottom:1px solid #F0F1F4; font-family:var(--mono); vertical-align:top;}
+  .rowcard tr:last-child td{border-bottom:none;}
+  .cell-old{color:var(--del-fg); background:var(--del-bg); text-decoration:line-through; text-decoration-color:var(--del-fg); border-radius:4px; padding:1px 5px;}
+  .cell-new{color:var(--add-fg); background:var(--add-bg); border-radius:4px; padding:1px 5px; margin-top:3px; display:inline-block;}
+  .cell-same{color:var(--text2);}
+  .cell-block{display:flex; flex-direction:column; gap:2px;}
+
+  .rowcard.added .rowcard-head{background:var(--add-bg); color:var(--add-fg);}
+  .rowcard.deleted .rowcard-head{background:var(--del-bg); color:var(--del-fg);}
+  .rowcard.modified .rowcard-head{background:var(--mod-bg); color:var(--mod-fg);}
+
+  .empty{color:var(--text2); font-size:13px; padding:20px 0; text-align:center;}
+  .note{font-size:12px; color:var(--text2); margin-top:10px; line-height:1.5;}
+  .error{color:var(--del-fg); font-size:13px; margin-top:10px;}
+  .warn{color:var(--mod-fg); font-size:12px; margin-top:6px;}
+  .btnrow{display:flex; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  #results{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>SpreadSheet Comparator</h1>
+  <p>Compares Excel workbooks — added/removed/renamed columns, added/removed rows, and modified cells. Supports comparing a chain of two or more files.</p>
+</header>
+
+<main>
+  <div class="panel">
+    <h2>1. Upload workbooks (in chronological order)</h2>
+    <div class="dropzone" id="dz">
+      <div>Click or drop two or more .xlsx / .xls files</div>
+      <div class="hint">Files are compared in the order listed below: File 1 → File 2 → File 3 …</div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm" multiple>
+    </div>
+    <div class="filelist" id="fileList"></div>
+
+    <div class="controls-row">
+      <label>Sheet to compare
+        <select id="sheetSelect"><option>Upload a file first</option></select>
+      </label>
+      <label>Row match sensitivity
+        <input type="range" id="sens" min="10" max="90" value="34">
+        <span id="sensVal">34%</span>
+      </label>
+      <label><input type="checkbox" id="renameToggle" checked style="width:auto;"> Detect renamed columns</label>
+    </div>
+    <div class="controls-row" style="margin-top:6px;">
+      <button class="primary" id="btnCompare" disabled>Compare workbooks</button>
+    </div>
+    <div class="error" id="errBox" style="display:none;"></div>
+    <div class="note" id="loadNote"></div>
+  </div>
+
+  <div id="results">
+    <div class="panel">
+      <h2>Export</h2>
+      <div class="btnrow">
+        <button class="secondary" id="btnExportXlsx">Export Excel change-control report</button>
+        <button class="secondary" id="btnExportPdf">Export PDF report</button>
+      </div>
+      <div class="note">Both exports cover every comparison in the chain (not just the tab currently shown below), listed field-by-field for audit purposes.</div>
+    </div>
+
+    <div class="tabbar" id="tabbar"></div>
+
+    <div class="panel">
+      <h2>Summary</h2>
+      <div class="summary">
+        <div class="stat add"><div class="n" id="sAdd">0</div><div class="l">Rows added</div></div>
+        <div class="stat del"><div class="n" id="sDel">0</div><div class="l">Rows deleted</div></div>
+        <div class="stat mod"><div class="n" id="sMod">0</div><div class="l">Rows modified</div></div>
+        <div class="stat unc"><div class="n" id="sUnc">0</div><div class="l">Rows unchanged</div></div>
+      </div>
+      <div id="colChangesWrap" style="margin-top:16px; display:none;">
+        <h2 style="margin-top:4px;">Column changes</h2>
+        <div id="colChanges"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Row-level differences</h2>
+      <div class="filters">
+        <div class="chip active" data-f="all">All changes</div>
+        <div class="chip" data-f="added">Added</div>
+        <div class="chip" data-f="deleted">Deleted</div>
+        <div class="chip" data-f="modified">Modified</div>
+        <input class="search" id="search" placeholder="Search cell text…">
+      </div>
+      <div id="rowList"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+let files=[]; // {name, wb}
+let pairResults=null;
+let activePair=0;
+let activeFilter='all';
+
+function escapeHtml(s){
+  return String(s===undefined||s===null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function showError(msg){ const b=document.getElementById('errBox'); b.style.display='block'; b.textContent=msg; }
+function clearError(){ document.getElementById('errBox').style.display='none'; }
+
+/* ---------- Upload / file list ---------- */
+const dz=document.getElementById('dz'), fileInput=document.getElementById('fileInput');
+dz.addEventListener('click', ()=>fileInput.click());
+dz.addEventListener('dragover', e=>{e.preventDefault(); dz.classList.add('drag');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('drag'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('drag');
+  addFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', ()=>{ addFiles(fileInput.files); fileInput.value=''; });
+
+function addFiles(fileListObj){
+  clearError();
+  Array.from(fileListObj).forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{
+        const data=new Uint8Array(e.target.result);
+        const wb=XLSX.read(data,{type:'array', cellDates:true});
+        files.push({name:f.name, wb});
+        renderFileList();
+        checkReady();
+      }catch(err){ showError('Could not read "'+f.name+'": '+err.message); }
+    };
+    reader.readAsArrayBuffer(f);
+  });
+}
+
+function renderFileList(){
+  const el=document.getElementById('fileList');
+  el.innerHTML='';
+  files.forEach((f,i)=>{
+    const row=document.createElement('div');
+    row.className='filerow';
+    row.innerHTML=`<span class="ord">${i+1}</span><span class="fn">${escapeHtml(f.name)}</span>
+      <button data-act="up" data-i="${i}" ${i===0?'disabled':''}>↑</button>
+      <button data-act="down" data-i="${i}" ${i===files.length-1?'disabled':''}>↓</button>
+      <button data-act="rm" data-i="${i}">Remove</button>`;
+    el.appendChild(row);
+  });
+  el.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i=parseInt(btn.dataset.i,10), act=btn.dataset.act;
+      if(act==='rm') files.splice(i,1);
+      else if(act==='up'){ [files[i-1],files[i]]=[files[i],files[i-1]]; }
+      else if(act==='down'){ [files[i+1],files[i]]=[files[i],files[i+1]]; }
+      renderFileList();
+      populateSheetSelect();
+      checkReady();
+    });
+  });
+  populateSheetSelect();
+}
+
+function populateSheetSelect(){
+  const sel=document.getElementById('sheetSelect');
+  if(files.length===0){ sel.innerHTML='<option>Upload a file first</option>'; return; }
+  const names=files[0].wb.SheetNames;
+  const prev=sel.value;
+  sel.innerHTML = names.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  if(names.includes(prev)) sel.value=prev;
+}
+
+function checkReady(){
+  document.getElementById('btnCompare').disabled = files.length<2;
+}
+document.getElementById('sens').addEventListener('input', e=>{
+  document.getElementById('sensVal').textContent=e.target.value+'%';
+});
+
+/* ---------- Sheet extraction ---------- */
+function resolveSheet(fileEntry, desiredName){
+  const wb=fileEntry.wb;
+  let idx=wb.SheetNames.indexOf(desiredName);
+  let warning=null;
+  if(idx===-1){
+    idx=0;
+    warning=`Sheet "${desiredName}" not found in "${fileEntry.name}" — used "${wb.SheetNames[0]}" instead.`;
+  }
+  const sheetName=wb.SheetNames[idx];
+  const ws=wb.Sheets[sheetName];
+  const raw=XLSX.utils.sheet_to_json(ws,{header:1, defval:'', blankrows:false, raw:true});
+  if(raw.length===0) return {sheetData:{sheetName, headers:[], rows:[]}, warning};
+  const headerRow=raw[0].map((h,i)=> (h===''||h===undefined||h===null) ? '(Column '+(i+1)+')' : String(h).trim());
+  const rows=raw.slice(1);
+  return {sheetData:{sheetName, headers:headerRow, rows}, warning};
+}
+
+function normVal(v){
+  if(v===undefined||v===null) return '';
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  if(typeof v==='number') return v;
+  return String(v).trim();
+}
+function rowObj(headers, rawRow){
+  const o={};
+  headers.forEach((h,i)=>{ o[h]=normVal(rawRow[i]); });
+  return o;
+}
+
+/* ---------- Column rename detection ---------- */
+function levenshtein(a,b){
+  a=String(a); b=String(b);
+  const m=a.length, n=b.length;
+  if(m===0) return n; if(n===0) return m;
+  const dp=new Array(n+1); for(let j=0;j<=n;j++) dp[j]=j;
+  for(let i=1;i<=m;i++){
+    let prev=dp[0]; dp[0]=i;
+    for(let j=1;j<=n;j++){
+      const tmp=dp[j];
+      dp[j]= a[i-1]===b[j-1] ? prev : 1+Math.min(prev, dp[j], dp[j-1]);
+      prev=tmp;
+    }
+  }
+  return dp[n];
+}
+function headerSimilarity(a,b){
+  const maxLen=Math.max(a.length,b.length,1);
+  return 1 - levenshtein(a.toLowerCase(),b.toLowerCase())/maxLen;
+}
+function contentSimilarity(oldCol,newCol,oldObjs,newObjs){
+  const n=Math.min(oldObjs.length,newObjs.length,300);
+  if(n===0) return 0;
+  let same=0;
+  for(let i=0;i<n;i++){
+    if(JSON.stringify(oldObjs[i][oldCol])===JSON.stringify(newObjs[i][newCol])) same++;
+  }
+  return same/n;
+}
+function buildColumnMapping(Aheaders,Bheaders,oldObjs,newObjs,detectRename){
+  const sameCols=Aheaders.filter(h=>Bheaders.includes(h));
+  let remOld=Aheaders.filter(h=>!sameCols.includes(h));
+  let remNew=Bheaders.filter(h=>!sameCols.includes(h));
+  const renamed=[];
+  if(detectRename && remOld.length && remNew.length){
+    const scored=[];
+    remOld.forEach(oc=>{
+      remNew.forEach(nc=>{
+        const hs=headerSimilarity(oc,nc);
+        const cs=contentSimilarity(oc,nc,oldObjs,newObjs);
+        scored.push({oc,nc,score:0.5*hs+0.5*cs});
+      });
+    });
+    scored.sort((a,b)=>b.score-a.score);
+    const usedOld=new Set(), usedNew=new Set();
+    scored.forEach(s=>{
+      if(s.score>=0.55 && !usedOld.has(s.oc) && !usedNew.has(s.nc)){
+        usedOld.add(s.oc); usedNew.add(s.nc);
+        renamed.push({oldName:s.oc, newName:s.nc, score:s.score});
+      }
+    });
+    remOld=remOld.filter(h=>!usedOld.has(h));
+    remNew=remNew.filter(h=>!usedNew.has(h));
+  }
+  const pairs=sameCols.map(h=>({oldName:h,newName:h,renamed:false}))
+    .concat(renamed.map(r=>({oldName:r.oldName,newName:r.newName,renamed:true})));
+  return {pairs, removedCols:remOld, addedCols:remNew, renamedCols:renamed};
+}
+
+/* ---------- Row diff ---------- */
+function diffSequences(oldHashes,newHashes){
+  const n=oldHashes.length, m=newHashes.length;
+  const MAX_DP=4000000;
+  const ops=[];
+  if(n*m>MAX_DP){
+    const newIndexMap=new Map();
+    newHashes.forEach((h,idx)=>{ if(!newIndexMap.has(h)) newIndexMap.set(h,[]); newIndexMap.get(h).push(idx); });
+    let lastNew=-1, curOldStart=null, curNewStart=null;
+    function flush(oldEnd,newEnd){ if(curOldStart!==null){ ops.push({type:'replace',oldRange:[curOldStart,oldEnd],newRange:[curNewStart,newEnd]}); curOldStart=null; curNewStart=null; } }
+    for(let i=0;i<n;i++){
+      const candidates=newIndexMap.get(oldHashes[i])||[];
+      const match=candidates.find(idx=>idx>lastNew);
+      if(match!==undefined){ flush(i,match); ops.push({type:'equal',oldIdx:i,newIdx:match}); lastNew=match; }
+      else { if(curOldStart===null){curOldStart=i; curNewStart=lastNew+1;} }
+    }
+    flush(n,m);
+    return {ops, fallback:true};
+  }
+  const dp=new Array(n+1); for(let i=0;i<=n;i++) dp[i]=new Int32Array(m+1);
+  for(let i=n-1;i>=0;i--) for(let j=m-1;j>=0;j--)
+    dp[i][j]= oldHashes[i]===newHashes[j] ? dp[i+1][j+1]+1 : Math.max(dp[i+1][j],dp[i][j+1]);
+  let i=0,j=0,curOldStart=null,curNewStart=null;
+  function flush(oldEnd,newEnd){ if(curOldStart!==null){ ops.push({type:'replace',oldRange:[curOldStart,oldEnd],newRange:[curNewStart,newEnd]}); curOldStart=null; curNewStart=null; } }
+  while(i<n && j<m){
+    if(oldHashes[i]===newHashes[j]){ flush(i,j); ops.push({type:'equal',oldIdx:i,newIdx:j}); i++; j++; }
+    else if(dp[i+1][j]>=dp[i][j+1]){ if(curOldStart===null){curOldStart=i;curNewStart=j;} i++; }
+    else { if(curOldStart===null){curOldStart=i;curNewStart=j;} j++; }
+  }
+  flush(i,j);
+  if(i<n||j<m) ops.push({type:'replace',oldRange:[i,n],newRange:[j,m]});
+  return {ops, fallback:false};
+}
+function similarityPairs(oldObj,newObj,pairs){
+  if(pairs.length===0) return 0;
+  let same=0;
+  pairs.forEach(p=>{ if(JSON.stringify(oldObj[p.oldName])===JSON.stringify(newObj[p.newName])) same++; });
+  return same/pairs.length;
+}
+function matchBlock(oldObjs,oldIdxs,newObjs,newIdxs,pairs,threshold){
+  const cand=[];
+  oldIdxs.forEach(oi=>newIdxs.forEach(ni=>{
+    const s=similarityPairs(oldObjs[oi],newObjs[ni],pairs);
+    if(s>=threshold) cand.push({oi,ni,s});
+  }));
+  cand.sort((a,b)=>b.s-a.s);
+  const usedOld=new Set(), usedNew=new Set(), matched=[];
+  cand.forEach(c=>{ if(!usedOld.has(c.oi)&&!usedNew.has(c.ni)){ usedOld.add(c.oi); usedNew.add(c.ni); matched.push(c); } });
+  return {matched, deletedOnly:oldIdxs.filter(o=>!usedOld.has(o)), addedOnly:newIdxs.filter(n=>!usedNew.has(n))};
+}
+
+/* ---------- Compare one pair ---------- */
+function comparePairFiles(fileA, fileB, sheetName, threshold, detectRename){
+  const {sheetData:A, warning:warnA}=resolveSheet(fileA, sheetName);
+  const {sheetData:B, warning:warnB}=resolveSheet(fileB, sheetName);
+  const oldObjs=A.rows.map(r=>rowObj(A.headers,r));
+  const newObjs=B.rows.map(r=>rowObj(B.headers,r));
+  const {pairs, removedCols, addedCols, renamedCols}=buildColumnMapping(A.headers,B.headers,oldObjs,newObjs,detectRename);
+
+  const oldHashes=oldObjs.map(o=>pairs.map(p=>JSON.stringify(o[p.oldName])).join('|'));
+  const newHashes=newObjs.map(o=>pairs.map(p=>JSON.stringify(o[p.newName])).join('|'));
+  const {ops, fallback}=diffSequences(oldHashes,newHashes);
+
+  const results=[]; let unchangedCount=0;
+  ops.forEach(op=>{
+    if(op.type==='equal'){ unchangedCount++; return; }
+    const oldIdxs=[]; for(let k=op.oldRange[0];k<op.oldRange[1];k++) oldIdxs.push(k);
+    const newIdxs=[]; for(let k=op.newRange[0];k<op.newRange[1];k++) newIdxs.push(k);
+    if(oldIdxs.length===0){ newIdxs.forEach(ni=>results.push({type:'added',newIdx:ni})); return; }
+    if(newIdxs.length===0){ oldIdxs.forEach(oi=>results.push({type:'deleted',oldIdx:oi})); return; }
+    const {matched, deletedOnly, addedOnly}=matchBlock(oldObjs,oldIdxs,newObjs,newIdxs,pairs,threshold);
+    matched.forEach(p=>{
+      const changedPairs=pairs.filter(pr=>JSON.stringify(oldObjs[p.oi][pr.oldName])!==JSON.stringify(newObjs[p.ni][pr.newName]));
+      if(changedPairs.length===0) unchangedCount++;
+      else results.push({type:'modified', oldIdx:p.oi, newIdx:p.ni, changedPairs});
+    });
+    deletedOnly.forEach(oi=>results.push({type:'deleted',oldIdx:oi}));
+    addedOnly.forEach(ni=>results.push({type:'added',newIdx:ni}));
+  });
+
+  return {labelA:fileA.name, labelB:fileB.name, A, B, pairs, removedCols, addedCols, renamedCols,
+    oldObjs, newObjs, results, unchangedCount, fallback, sheetWarnings:[warnA,warnB].filter(Boolean)};
+}
+
+/* ---------- Run all pairs ---------- */
+document.getElementById('btnCompare').addEventListener('click', ()=>{
+  clearError();
+  const sheetName=document.getElementById('sheetSelect').value;
+  const threshold=parseInt(document.getElementById('sens').value,10)/100;
+  const detectRename=document.getElementById('renameToggle').checked;
+  try{
+    pairResults=[];
+    for(let k=0;k<files.length-1;k++){
+      pairResults.push(comparePairFiles(files[k], files[k+1], sheetName, threshold, detectRename));
+    }
+  }catch(err){ showError('Comparison failed: '+err.message); return; }
+  activePair=0;
+  document.getElementById('results').style.display='block';
+  renderTabs();
+  renderPair();
+});
+
+function renderTabs(){
+  const bar=document.getElementById('tabbar');
+  bar.innerHTML='';
+  if(pairResults.length<=1) return;
+  pairResults.forEach((p,i)=>{
+    const t=document.createElement('div');
+    t.className='tab'+(i===activePair?' active':'');
+    t.textContent=`${i+1}. ${p.labelA} → ${p.labelB}`;
+    t.addEventListener('click', ()=>{ activePair=i; renderTabs(); renderPair(); });
+    bar.appendChild(t);
+  });
+}
+
+function renderPair(){
+  const p=pairResults[activePair];
+  document.getElementById('sAdd').textContent=p.results.filter(r=>r.type==='added').length;
+  document.getElementById('sDel').textContent=p.results.filter(r=>r.type==='deleted').length;
+  document.getElementById('sMod').textContent=p.results.filter(r=>r.type==='modified').length;
+  document.getElementById('sUnc').textContent=p.unchangedCount;
+
+  const colWrap=document.getElementById('colChangesWrap'), colDiv=document.getElementById('colChanges');
+  colDiv.innerHTML='';
+  if(p.addedCols.length||p.removedCols.length||p.renamedCols.length){
+    colWrap.style.display='block';
+    p.renamedCols.forEach(r=>{ colDiv.innerHTML+=`<div class="colchange"><span class="badge mod">Renamed</span> ${escapeHtml(r.oldName)} → ${escapeHtml(r.newName)}</div>`; });
+    p.addedCols.forEach(c=>{ colDiv.innerHTML+=`<div class="colchange"><span class="badge add">Added</span> ${escapeHtml(c)}</div>`; });
+    p.removedCols.forEach(c=>{ colDiv.innerHTML+=`<div class="colchange"><span class="badge del">Removed</span> ${escapeHtml(c)}</div>`; });
+  } else colWrap.style.display='none';
+
+  let note=`Comparing "${p.labelA}" → "${p.labelB}", sheet "${p.A.sheetName}"${p.A.sheetName!==p.B.sheetName?' / "'+p.B.sheetName+'"':''}. ${p.pairs.length} shared/matched column(s) used for row matching.`;
+  if(p.fallback) note+=' Large sheet detected — used a faster approximate matching pass.';
+  p.sheetWarnings.forEach(w=> note+=' '+w);
+  document.getElementById('loadNote').textContent=note;
+
+  renderRowList();
+}
+
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    activeFilter=chip.dataset.f;
+    renderRowList();
+  });
+});
+document.getElementById('search').addEventListener('input', renderRowList);
+
+function renderRowList(){
+  if(!pairResults) return;
+  const p=pairResults[activePair];
+  const q=document.getElementById('search').value.trim().toLowerCase();
+  const list=document.getElementById('rowList');
+  list.innerHTML='';
+  let filtered=p.results.filter(r=>activeFilter==='all'||r.type===activeFilter);
+  if(q){
+    filtered=filtered.filter(r=>{
+      const obj=r.type==='deleted'?p.oldObjs[r.oldIdx]:p.newObjs[r.newIdx];
+      return Object.values(obj).some(v=>String(v).toLowerCase().includes(q));
+    });
+  }
+  if(filtered.length===0){ list.innerHTML='<div class="empty">No rows match this filter.</div>'; return; }
+  filtered.forEach(r=>{
+    const card=document.createElement('div');
+    card.className='rowcard '+r.type;
+    let headHtml='', bodyHtml='';
+    if(r.type==='added'){
+      headHtml=`<span class="badge add">Added</span><span class="idx">new row ${r.newIdx+2}</span>`;
+      bodyHtml=tableForSingle(p.B.headers, p.newObjs[r.newIdx]);
+    } else if(r.type==='deleted'){
+      headHtml=`<span class="badge del">Deleted</span><span class="idx">original row ${r.oldIdx+2}</span>`;
+      bodyHtml=tableForSingle(p.A.headers, p.oldObjs[r.oldIdx]);
+    } else {
+      headHtml=`<span class="badge mod">Modified</span><span class="idx">original row ${r.oldIdx+2} → new row ${r.newIdx+2}</span>`;
+      bodyHtml=tableForModified(p.pairs, p.oldObjs[r.oldIdx], p.newObjs[r.newIdx], r.changedPairs);
+    }
+    card.innerHTML=`<div class="rowcard-head">${headHtml}</div>${bodyHtml}`;
+    list.appendChild(card);
+  });
+}
+function tableForSingle(headers,obj){
+  return `<table>${headers.map(h=>`<tr><th>${escapeHtml(h)}</th><td>${escapeHtml(obj[h])}</td></tr>`).join('')}</table>`;
+}
+function tableForModified(pairs,oldObj,newObj,changedPairs){
+  const changedSet=new Set(changedPairs.map(p=>p.newName+'|'+p.oldName));
+  const rows=pairs.map(p=>{
+    const label=p.renamed?`${escapeHtml(p.oldName)} → ${escapeHtml(p.newName)}`:escapeHtml(p.newName);
+    if(changedSet.has(p.newName+'|'+p.oldName)){
+      return `<tr><th>${label}</th><td><div class="cell-block"><span class="cell-old">${escapeHtml(oldObj[p.oldName])||'&nbsp;'}</span><span class="cell-new">${escapeHtml(newObj[p.newName])||'&nbsp;'}</span></div></td></tr>`;
+    }
+    return `<tr><th>${label}</th><td><span class="cell-same">${escapeHtml(newObj[p.newName])}</span></td></tr>`;
+  }).join('');
+  return `<table>${rows}</table>`;
+}
+
+/* ---------- Export: Excel ---------- */
+function sanitizeSheetName(name){
+  let s=name.replace(/[\\/*?:\[\]]/g,'-');
+  if(s.length>31) s=s.slice(0,31);
+  return s || 'Sheet';
+}
+function downloadBlob(buffer, filename, mime){
+  const blob=new Blob([buffer], {type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+document.getElementById('btnExportXlsx').addEventListener('click', async ()=>{
+  if(!pairResults) return;
+  const fillGreen={type:'pattern',pattern:'solid',fgColor:{argb:'FFE6F6ED'}};
+  const fillRed={type:'pattern',pattern:'solid',fgColor:{argb:'FFFBEAE8'}};
+  const fillAmber={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF3DE'}};
+
+  const wb=new ExcelJS.Workbook();
+  wb.creator='SpreadSheet Comparator'; wb.created=new Date();
+
+  const sum=wb.addWorksheet('Summary');
+  sum.columns=[
+    {header:'Comparison',key:'c',width:38},{header:'Sheet',key:'s',width:22},
+    {header:'Rows Added',key:'ra',width:12},{header:'Rows Deleted',key:'rd',width:12},
+    {header:'Rows Modified',key:'rm',width:13},{header:'Rows Unchanged',key:'ru',width:14},
+    {header:'Cols Added',key:'ca',width:11},{header:'Cols Removed',key:'cr',width:13},{header:'Cols Renamed',key:'cn',width:13}
+  ];
+  sum.getRow(1).font={bold:true};
+  pairResults.forEach(p=>{
+    sum.addRow({
+      c:`${p.labelA} -> ${p.labelB}`,
+      s: p.A.sheetName===p.B.sheetName? p.A.sheetName : `${p.A.sheetName} / ${p.B.sheetName}`,
+      ra:p.results.filter(r=>r.type==='added').length,
+      rd:p.results.filter(r=>r.type==='deleted').length,
+      rm:p.results.filter(r=>r.type==='modified').length,
+      ru:p.unchangedCount, ca:p.addedCols.length, cr:p.removedCols.length, cn:p.renamedCols.length
+    });
+  });
+
+  pairResults.forEach((p,idx)=>{
+    const ws=wb.addWorksheet(sanitizeSheetName(`P${idx+1} diff`));
+    ws.columns=[
+      {header:'Change Type',key:'t',width:14},{header:'Row Ref',key:'r',width:24},
+      {header:'Column',key:'col',width:26},{header:'Old Value',key:'o',width:30},{header:'New Value',key:'n',width:30}
+    ];
+    ws.getRow(1).font={bold:true};
+    p.renamedCols.forEach(rc=>ws.addRow({t:'Column Renamed', r:'-', col:`${rc.oldName} -> ${rc.newName}`, o:'', n:''}).eachCell(c=>c.fill=fillAmber));
+    p.addedCols.forEach(c=>ws.addRow({t:'Column Added', r:'-', col:c, o:'', n:''}).eachCell(x=>x.fill=fillGreen));
+    p.removedCols.forEach(c=>ws.addRow({t:'Column Removed', r:'-', col:c, o:'', n:''}).eachCell(x=>x.fill=fillRed));
+    p.results.forEach(r=>{
+      if(r.type==='added'){
+        p.B.headers.forEach(h=>ws.addRow({t:'Row Added', r:`new row ${r.newIdx+2}`, col:h, o:'', n:p.newObjs[r.newIdx][h]}).eachCell(x=>x.fill=fillGreen));
+      } else if(r.type==='deleted'){
+        p.A.headers.forEach(h=>ws.addRow({t:'Row Deleted', r:`orig row ${r.oldIdx+2}`, col:h, o:p.oldObjs[r.oldIdx][h], n:''}).eachCell(x=>x.fill=fillRed));
+      } else {
+        r.changedPairs.forEach(cp=>{
+          const colLabel=cp.renamed?`${cp.oldName} -> ${cp.newName}`:cp.newName;
+          ws.addRow({t:'Row Modified', r:`orig ${r.oldIdx+2} -> new ${r.newIdx+2}`, col:colLabel, o:p.oldObjs[r.oldIdx][cp.oldName], n:p.newObjs[r.newIdx][cp.newName]}).eachCell(x=>x.fill=fillAmber);
+        });
+      }
+    });
+  });
+
+  const buf=await wb.xlsx.writeBuffer();
+  downloadBlob(buf, 'spreadsheet-comparator-report.xlsx', 'application/octet-stream');
+});
+
+/* ---------- Export: PDF (print) ---------- */
+document.getElementById('btnExportPdf').addEventListener('click', ()=>{
+  if(!pairResults) return;
+  let html=`<html><head><title>SpreadSheet Comparator Report</title><style>
+    body{font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#111; margin:24px;}
+    h1{font-size:18px;} h2{font-size:14px; margin-top:26px; border-bottom:1px solid #999; padding-bottom:4px;}
+    table{width:100%; border-collapse:collapse; margin-top:8px;}
+    th,td{border:1px solid #ccc; padding:4px 6px; text-align:left; font-size:10px;}
+    th{background:#eee;}
+    .add{background:#E6F6ED;} .del{background:#FBEAE8;} .mod{background:#FDF3DE;}
+    .meta{color:#555; font-size:10.5px; margin-bottom:6px;}
+    .pb{page-break-before:always;}
+  </style></head><body>`;
+  html+=`<h1>SpreadSheet Comparator Report</h1><div class="meta">Generated ${new Date().toLocaleString()}</div>`;
+  pairResults.forEach((p,idx)=>{
+    html+=`<div${idx>0?' class="pb"':''}></div>`;
+    html+=`<h2>${idx+1}. ${escapeHtml(p.labelA)} &rarr; ${escapeHtml(p.labelB)}</h2>`;
+    html+=`<div class="meta">Sheet: ${escapeHtml(p.A.sheetName)}${p.A.sheetName!==p.B.sheetName?' / '+escapeHtml(p.B.sheetName):''} — Added: ${p.results.filter(r=>r.type==='added').length}, Deleted: ${p.results.filter(r=>r.type==='deleted').length}, Modified: ${p.results.filter(r=>r.type==='modified').length}, Unchanged: ${p.unchangedCount}</div>`;
+    if(p.addedCols.length||p.removedCols.length||p.renamedCols.length){
+      html+='<table><tr><th>Type</th><th>Column</th></tr>';
+      p.renamedCols.forEach(r=>html+=`<tr class="mod"><td>Renamed</td><td>${escapeHtml(r.oldName)} &rarr; ${escapeHtml(r.newName)}</td></tr>`);
+      p.addedCols.forEach(c=>html+=`<tr class="add"><td>Added</td><td>${escapeHtml(c)}</td></tr>`);
+      p.removedCols.forEach(c=>html+=`<tr class="del"><td>Removed</td><td>${escapeHtml(c)}</td></tr>`);
+      html+='</table>';
+    }
+    html+='<table><tr><th>Type</th><th>Row</th><th>Column</th><th>Old Value</th><th>New Value</th></tr>';
+    p.results.forEach(r=>{
+      if(r.type==='added'){
+        p.B.headers.forEach(h=>html+=`<tr class="add"><td>Row Added</td><td>new ${r.newIdx+2}</td><td>${escapeHtml(h)}</td><td></td><td>${escapeHtml(p.newObjs[r.newIdx][h])}</td></tr>`);
+      } else if(r.type==='deleted'){
+        p.A.headers.forEach(h=>html+=`<tr class="del"><td>Row Deleted</td><td>orig ${r.oldIdx+2}</td><td>${escapeHtml(h)}</td><td>${escapeHtml(p.oldObjs[r.oldIdx][h])}</td><td></td></tr>`);
+      } else {
+        r.changedPairs.forEach(cp=>{
+          const colLabel=cp.renamed?`${escapeHtml(cp.oldName)} &rarr; ${escapeHtml(cp.newName)}`:escapeHtml(cp.newName);
+          html+=`<tr class="mod"><td>Row Modified</td><td>orig ${r.oldIdx+2}&rarr;new ${r.newIdx+2}</td><td>${colLabel}</td><td>${escapeHtml(p.oldObjs[r.oldIdx][cp.oldName])}</td><td>${escapeHtml(p.newObjs[r.newIdx][cp.newName])}</td></tr>`;
+        });
+      }
+    });
+    html+='</table>';
+  });
+  html+='</body></html>';
+  const w=window.open('','_blank');
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(()=>w.print(), 400);
+});
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
