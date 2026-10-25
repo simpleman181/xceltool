@@ -1,8 +1,9 @@
-const CACHE_NAME = 'xlsx-comparator-v1';
+const CACHE_NAME = 'xlsx-comparator-v2';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './monetization.js',
   './lib/xlsx.full.min.js',
   './lib/exceljs.min.js',
   './icons/icon-192.png',

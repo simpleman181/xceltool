@@ -483,7 +483,7 @@ function comparePairFiles(fileA, fileB, sheetName, threshold, detectRename){
 }
 
 /* ---------- Run all pairs ---------- */
-document.getElementById('btnCompare').addEventListener('click', ()=>{
+function runCompareAll(){
   clearError();
   const sheetName=document.getElementById('sheetSelect').value;
   const threshold=parseInt(document.getElementById('sens').value,10)/100;
@@ -493,12 +493,13 @@ document.getElementById('btnCompare').addEventListener('click', ()=>{
     for(let k=0;k<files.length-1;k++){
       pairResults.push(comparePairFiles(files[k], files[k+1], sheetName, threshold, detectRename));
     }
-  }catch(err){ showError('Comparison failed: '+err.message); return; }
+  }catch(err){ showError('Comparison failed: '+err.message); return false; }
   activePair=0;
   document.getElementById('results').style.display='block';
   renderTabs();
   renderPair();
-});
+  return true;
+}
 
 function renderTabs(){
   const bar=document.getElementById('tabbar');
@@ -710,6 +711,8 @@ document.getElementById('btnExportPdf').addEventListener('click', ()=>{
   setTimeout(()=>w.print(), 400);
 });
 </script>
+<script src="monetization.js"></script>
+<script>Monetization.init(runCompareAll);</script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
