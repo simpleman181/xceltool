@@ -1,4 +1,4 @@
-const CACHE_NAME = 'spreadsheet-comparator-v1';
+const CACHE_NAME = 'comparator-xlsx-v1';
 const APP_SHELL = [
   './',
   './index.html',
