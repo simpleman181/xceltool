@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#2F3B87">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<title>XLSX Comparator</title>
+<title>Comparator XLSX</title>
 <script src="lib/xlsx.full.min.js"></script>
 <script src="lib/exceljs.min.js"></script>
 <style>
@@ -155,7 +155,7 @@
 <body>
 
 <header>
-  <h1>XLSX Comparator</h1>
+  <h1>Comparator XLSX</h1>
   <p>Compares Excel workbooks — added/removed/renamed columns, added/removed rows, and modified cells. Supports comparing a chain of two or more files.</p>
 </header>
 
@@ -224,6 +224,7 @@
       <div id="rowList"></div>
     </div>
   </div>
+<div class="note" style="text-align:center;margin-top:30px;">Microsoft and Excel are trademarks of the Microsoft group of companies. This app is an independent product and is not affiliated with or endorsed by Microsoft.</div>
 </main>
 
 <script>
@@ -614,7 +615,7 @@ document.getElementById('btnExportXlsx').addEventListener('click', async ()=>{
   const fillAmber={type:'pattern',pattern:'solid',fgColor:{argb:'FFFDF3DE'}};
 
   const wb=new ExcelJS.Workbook();
-  wb.creator='XLSX Comparator'; wb.created=new Date();
+  wb.creator='Comparator XLSX'; wb.created=new Date();
 
   const sum=wb.addWorksheet('Summary');
   sum.columns=[
@@ -660,13 +661,13 @@ document.getElementById('btnExportXlsx').addEventListener('click', async ()=>{
   });
 
   const buf=await wb.xlsx.writeBuffer();
-  downloadBlob(buf, 'xlsx-comparator-report.xlsx', 'application/octet-stream');
+  downloadBlob(buf, 'comparator-xlsx-report.xlsx', 'application/octet-stream');
 });
 
 /* ---------- Export: PDF (print) ---------- */
 document.getElementById('btnExportPdf').addEventListener('click', ()=>{
   if(!pairResults) return;
-  let html=`<html><head><title>XLSX Comparator Report</title><style>
+  let html=`<html><head><title>Comparator XLSX Report</title><style>
     body{font-family:Arial,Helvetica,sans-serif; font-size:11px; color:#111; margin:24px;}
     h1{font-size:18px;} h2{font-size:14px; margin-top:26px; border-bottom:1px solid #999; padding-bottom:4px;}
     table{width:100%; border-collapse:collapse; margin-top:8px;}
@@ -676,7 +677,7 @@ document.getElementById('btnExportPdf').addEventListener('click', ()=>{
     .meta{color:#555; font-size:10.5px; margin-bottom:6px;}
     .pb{page-break-before:always;}
   </style></head><body>`;
-  html+=`<h1>XLSX Comparator Report</h1><div class="meta">Generated ${new Date().toLocaleString()}</div>`;
+  html+=`<h1>Comparator XLSX Report</h1><div class="meta">Generated ${new Date().toLocaleString()}</div>`;
   pairResults.forEach((p,idx)=>{
     html+=`<div${idx>0?' class="pb"':''}></div>`;
     html+=`<h2>${idx+1}. ${escapeHtml(p.labelA)} &rarr; ${escapeHtml(p.labelB)}</h2>`;
